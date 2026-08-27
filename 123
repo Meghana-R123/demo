@@ -1,0 +1,475 @@
+one
+
+import os
+from agno.agent import Agent
+from agno.models.groq import Groq
+from agno.tools.yfinance import YFinanceTools
+
+os.environ["GROQ_API_KEY"] = "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"
+
+agent = Agent(
+    model=Groq(id="openai/gpt-oss-20b"),
+    tools=[YFinanceTools(
+        enable_stock_price=True,
+        enable_company_info=True,
+        enable_analyst_recommendations=True,
+        enable_company_news=True
+    )],
+    instructions=[
+        "Give a short financial report on NVIDIA.",
+        "Include stock price, company information, analyst recommendations and recent news.",
+        "Use a table and a short summary."
+    ],
+    markdown=True
+)
+
+agent.print_response(
+    "Generate a report on NVIDIA (NVDA). Keep the response concise.",
+    stream=True
+)
+
+two planning
+
+from groq import Groq
+
+client = Groq(api_key="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")
+
+response = client.chat.completions.create(
+    model="openai/gpt-oss-20b",
+    messages=[
+        {
+            "role": "user",
+            "content": """
+             Organize a college technical fest.
+            Create a step-by-step plan.
+            """
+        }
+    ]
+)
+
+print(response.choices[0].message.content)
+
+two react
+
+from groq import Groq
+
+client = Groq(api_key="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")
+
+response = client.chat.completions.create(
+    model="openai/gpt-oss-20b",
+    messages=[
+        {
+            "role": "user",
+            "content": """
+What is 25 × 18?
+Show:
+Thought
+Action
+Observation
+Final Answer
+Do not use LaTeX.
+Write everything in plain text.
+"""
+        }
+    ]
+)
+
+print(response.choices[0].message.content)
+
+three
+
+import os,time,threading,webbrowser,uvicorn,nest_asyncio
+from fastapi import FastAPI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_groq import ChatGroq
+from langserve import add_routes
+
+os.environ["GROQ_API_KEY"] = "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"
+
+app = FastAPI()
+
+llm = ChatGroq(model="openai/gpt-oss-20b")
+
+prompt = ChatPromptTemplate.from_template(
+    "Answer this question clearly: {question}"
+)
+
+chain = prompt | llm | StrOutputParser()
+
+add_routes(app, chain, path="/chat")
+
+nest_asyncio.apply()
+
+threading.Thread(
+    target=lambda: uvicorn.run(app, host="127.0.0.1", port=8000),
+    daemon=True
+).start()
+
+time.sleep(3)
+
+webbrowser.open("http://127.0.0.1:8000/chat/playground/")
+
+print("LangServe is running.")
+
+four
+
+import os
+import subprocess
+from langchain_groq import ChatGroq
+
+os.environ["GROQ_API_KEY"] = "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"
+
+llm = ChatGroq(model="openai/gpt-oss-20b")
+
+task = "Write Python code to calculate factorial of 5 using recursion."
+
+print("USER TASK:", task)
+print("\nGenerating code...")
+
+code = llm.invoke("Generate only Python code for: " + task).content.replace("```python", "").replace("```", "").strip()
+
+# Create an error in the generated code
+code = code.replace("factorial(5)", "fact(5)")
+
+for i in range(3):
+    print("\nAttempt", i + 1)
+    print(code)
+
+    result = subprocess.run(
+        ["python", "-c", code],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode == 0:
+        print("\nOUTPUT:", result.stdout)
+        break
+
+    print("\nError found:")
+    print(result.stderr)
+    print("\nCorrecting code...")
+
+    code = llm.invoke(
+        "Fix this code and return only Python code.\n"
+        + code + "\nError:\n" + result.stderr
+    ).content.replace("```python", "").replace("```", "").strip()
+
+    five
+
+    import os
+from typing import TypedDict
+from langchain_groq import ChatGroq
+from langgraph.graph import StateGraph, START, END
+from IPython.display import Image, display
+
+os.environ["GROQ_API_KEY"] = "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"
+
+llm = ChatGroq(model="openai/gpt-oss-20b",temperature=0)
+
+class State(TypedDict):
+    question: str
+    stock: str
+    price: str
+    answer: str
+
+def get_stock(s: State):
+    return {
+        "stock": "MICROSOFT, APPLE",
+        "price": "$500, $230"
+    }
+
+def answer(s: State):
+    r = llm.invoke(
+        f"Give a simple financial answer. Question: {s['question']}. Stock: {s['stock']}. Price: {s['price']}."
+    )
+    return {"answer": r.content}
+
+g = StateGraph(State)
+g.add_node("get_stock", get_stock)
+g.add_node("answer", answer)
+g.add_edge(START, "get_stock")
+g.add_edge("get_stock", "answer")
+g.add_edge("answer", END)
+
+bot = g.compile()
+
+display(Image(bot.get_graph().draw_mermaid_png()))
+
+result = bot.invoke({
+    "question": "What is the price of APPLE stock?"
+})
+
+print(result["answer"])
+
+six
+
+import os
+import pandas as pd
+from llama_index.core import Document, VectorStoreIndex, Settings
+from llama_index.core.embeddings import MockEmbedding
+from llama_index.llms.openai_like import OpenAILike
+
+os.environ["GROQ_API_KEY"] = "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"
+
+Settings.llm = OpenAILike(
+    model="openai/gpt-oss-20b",
+    api_base="https://api.groq.com/openai/v1",
+    api_key=os.environ["GROQ_API_KEY"],
+    is_chat_model=True,
+    is_function_calling_model=False
+)
+
+Settings.embed_model = MockEmbedding(embed_dim=384)
+
+df = pd.DataFrame({
+    "Month": ["Jan", "Feb", "Mar", "Apr", "May"],
+    "Product": ["Laptop", "Mobile", "Tablet", "Laptop", "Mobile"],
+    "Region": ["South", "North", "East", "West", "South"],
+    "Revenue": [50000, 40000, 25000, 60000, 55000],
+    "Profit": [10000, 8000, 4000, 12000, 11000]
+})
+
+display(df)
+
+doc = Document(text=df.to_string(index=False))
+engine = VectorStoreIndex.from_documents([doc]).as_query_engine()
+print(engine.query("Which product generated the highest total revenue? Show calculation."))
+
+seven 
+
+import cohere
+import numpy as np
+
+co = cohere.ClientV2(api_key="cohere_Qo6XU57saa0Vmzg5CNZr0dWGbkoxpN5Ob2oviBNJ02ASuH")
+
+documents = [
+"Electric vehicles are growing rapidly due to government incentives and environmental awareness.",
+"The Indian EV market is driven by two-wheelers, three-wheelers, and urban mobility.",
+"Major EV challenges include charging infrastructure, battery cost, and range anxiety.",
+"Major EV competitors include Tata Motors, Mahindra Electric, Ola Electric, Ather Energy, and MG Motor.",
+"Customers prefer EVs because of low running cost and reduced emissions."
+]
+
+query = "Prepare a market research report on electric vehicles in India"
+
+doc_embeddings = co.embed(
+    model="embed-v4.0",
+    texts=documents,
+    input_type="search_document",
+    embedding_types=["float"]
+).embeddings.float
+
+query_embedding = co.embed(
+    model="embed-v4.0",
+    texts=[query],
+    input_type="search_query",
+    embedding_types=["float"]
+).embeddings.float[0]
+
+scores = [np.dot(query_embedding,d) for d in doc_embeddings]
+context = "\n".join(documents[i] for i in np.argsort(scores)[-3:][::-1])
+prompt = f"""You are a Market Research Agent.
+Question: {query}
+Relevant Information:
+{context}
+Prepare a report with:
+1. Market Overview
+2. Key Drivers
+3. Challenges
+4. Competitors
+5. Opportunities
+6. Final Recommendation"""
+response = co.chat(model="command-a-03-2025",messages=[{"role":"user","content":prompt}])
+print(response.message.content[0].text)
+
+eight
+
+import os
+import pandas as pd
+from phi.agent import Agent
+from phi.model.groq import Groq
+
+os.environ["GROQ_API_KEY"] = "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"
+
+df = pd.DataFrame({
+    "Month": ["Jan", "Feb", "Mar", "Apr", "May"],
+    "Product": ["Laptop", "Mobile", "Tablet", "Laptop", "Mobile"],
+    "Region": ["South", "North", "East", "West", "South"],
+    "Revenue": [50000, 40000, 25000, 60000, 55000],
+    "Profit": [10000, 8000, 4000, 12000, 11000]
+})
+
+display(df)
+
+agent = Agent(
+    model=Groq(id="openai/gpt-oss-20b"),
+    instructions=["Analyze the sales data and show calculations clearly."]
+)
+
+data = df.to_string(index=False)
+
+response = agent.run(f"""
+Sales Data:
+{data}
+
+Question: Which product has the highest total revenue?
+Show the calculation, result, and a short business insight.
+""")
+
+print(response.content)
+
+nine
+
+import os
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
+from langchain_groq import ChatGroq
+from IPython.display import Image, display
+
+os.environ["GROQ_API_KEY"] = "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"
+llm = ChatGroq(model="openai/gpt-oss-20b")
+
+class State(TypedDict):
+    query: str
+    category: str
+    response: str
+
+def router(s):
+    r = llm.invoke("Classify as faq, order or complaint:\n" + s["query"])
+    return {"category": r.content.lower().strip()}
+
+def faq(s):
+    return {"response": llm.invoke("Answer politely:\n" + s["query"]).content}
+
+def order(s):
+    return {"response": llm.invoke("Help with this order:\n" + s["query"]).content}
+
+def complaint(s):
+    return {"response": llm.invoke("Apologize and help:\n" + s["query"]).content}
+
+g = StateGraph(State)
+g.add_node("router", router)
+g.add_node("faq", faq)
+g.add_node("order", order)
+g.add_node("complaint", complaint)
+g.set_entry_point("router")
+g.add_conditional_edges("router", lambda s: s["category"], {"faq":"faq", "order":"order", "complaint":"complaint"})
+g.add_edge("faq", END)
+g.add_edge("order", END)
+g.add_edge("complaint", END)
+
+app = g.compile()
+
+q = "I received a damaged product"
+r = app.invoke({"query": q, "category": "", "response": ""})
+display(Image(app.get_graph().draw_mermaid_png()))
+print("User Query:", q)
+print("Category:", r["category"])
+print("Bot Response:", r["response"])
+
+ten 
+
+import os
+import yfinance as yf
+from crewai import Agent, Task, Crew, Process, LLM
+from crewai.llms import cache as crewai_cache
+
+crewai_cache.mark_cache_breakpoint = lambda message: message
+llm = LLM(
+    model="groq/openai/gpt-oss-20b",
+    api_key=os.environ["GROQ_API_KEY"]
+)
+info = yf.Ticker("AAPL").info
+
+data = f"""
+Company: {info.get('longName')}
+Price: {info.get('currentPrice')}
+Market Cap: {info.get('marketCap')}
+PE Ratio: {info.get('trailingPE')}
+"""
+analyst = Agent(
+    role="Stock Analyst",
+    goal="Analyze the stock data",
+    backstory="You are an expert stock analyst",
+    llm=llm
+)
+writer = Agent(
+    role="Report Writer",
+    goal="Create a stock analysis report",
+    backstory="You are an expert financial report writer",
+    llm=llm
+)
+t1 = Task(
+    description=f"Analyze this stock data:\n{data}",
+    expected_output="Detailed stock analysis",
+    agent=analyst
+)
+
+t2 = Task(
+    description="Create a final report from the stock analysis.",
+    expected_output="Final stock report",
+    agent=writer
+)
+crew = Crew(
+    agents=[analyst, writer],
+    tasks=[t1, t2],
+    process=Process.sequential
+)
+result = await crew.kickoff_async()
+
+print(result)
+
+eleven
+
+import os
+from autogen import AssistantAgent, UserProxyAgent
+config = {
+    "config_list":[{
+        "model":"openai/gpt-oss-20b",
+        "api_key":"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",
+        "base_url":"https://api.groq.com/openai/v1",
+        "price":[0, 0]
+    }]
+}
+researcher = AssistantAgent(
+    name="Research_Agent",
+    system_message="""
+You are an AI research agent.
+Research the given topic and create
+a clear structured report.
+""",
+    llm_config=config
+)
+user = UserProxyAgent(
+    name="User_Proxy",
+    human_input_mode="NEVER",
+    code_execution_config=False,
+    max_consecutive_auto_reply=0
+)
+user.initiate_chat(
+    researcher,
+    message="""
+Research:
+Applications of Generative AI in Healthcare.
+Include:
+Introduction, applications,
+benefits, challenges,
+future scope and conclusion.
+"""
+)
+
+tweleve
+
+import os
+from langchain_groq import ChatGroq
+os.environ["LANGSMITH_TRACING"] = "false"
+os.environ["LANGSMITH_PROJECT"] = "Agentic-AI-Demo"
+llm = ChatGroq(
+    model="openai/gpt-oss-20b",
+    api_key="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"
+)
+r = llm.invoke(
+    "Explain Agentic AI in two sentences."
+)
+print(r.content)
